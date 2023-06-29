@@ -107,6 +107,9 @@ unsafe fn write_exponent(mut k: isize, mut buffer: *mut u8) -> *mut u8 {
         *buffer = b'-';
         buffer = buffer.offset(1);
         k = -k;
+    } else {
+        *buffer = b'+';
+        buffer = buffer.offset(1);
     }
 
     if k >= 100 {
@@ -120,6 +123,8 @@ unsafe fn write_exponent(mut k: isize, mut buffer: *mut u8) -> *mut u8 {
         ptr::copy_nonoverlapping(d, buffer, 2);
         buffer.offset(2)
     } else {
+        *buffer = b'0';
+        buffer = buffer.offset(1);
         *buffer = b'0' + k as u8;
         buffer.offset(1)
     }
@@ -129,23 +134,21 @@ unsafe fn write_exponent(mut k: isize, mut buffer: *mut u8) -> *mut u8 {
 inline char* Prettify(char* buffer, int length, int k, int maxDecimalPlaces) {
     const int kk = length + k;  // 10^(kk-1) <= v < 10^kk
 */
-
+const MIN_EXP: isize = -4;
+const MAX_EXP: isize = 15;
 #[inline]
 #[cfg_attr(feature = "no-panic", no_panic)]
 pub unsafe fn prettify(buffer: *mut u8, length: isize, k: isize) -> *mut u8 {
     let kk = length + k; // 10^(kk-1) <= v < 10^kk
 
-    /*
-    if (0 <= k && kk <= 21) {
-        // 1234e7 -> 12340000000
-        for (int i = length; i < kk; i++)
-            buffer[i] = '0';
-        buffer[kk] = '.';
-        buffer[kk + 1] = '0';
-        return &buffer[kk + 2];
-    }
-    */
-    if 0 <= k && kk <= 21 {
+    if length <= kk && kk <= MAX_EXP {
+        for i in length..kk {
+            *buffer.offset(i) = b'0';
+        }
+        *buffer.offset(kk) = b'.';
+        *buffer.offset(kk + 1) = b'0';
+        buffer.offset(kk + 2)
+    } else if 0 <= k && kk <= MAX_EXP {
         // 1234e7 -> 12340000000
         for i in length..kk {
             *buffer.offset(i) = b'0';
@@ -153,25 +156,7 @@ pub unsafe fn prettify(buffer: *mut u8, length: isize, k: isize) -> *mut u8 {
         *buffer.offset(kk) = b'.';
         *buffer.offset(kk + 1) = b'0';
         buffer.offset(kk + 2)
-    }
-    /*
-    else if (0 < kk && kk <= 21) {
-        // 1234e-2 -> 12.34
-        std::memmove(&buffer[kk + 1], &buffer[kk], static_cast<size_t>(length - kk));
-        buffer[kk] = '.';
-        if (0 > k + maxDecimalPlaces) {
-            // When maxDecimalPlaces = 2, 1.2345 -> 1.23, 1.102 -> 1.1
-            // Remove extra trailing zeros (at least one) after truncation.
-            for (int i = kk + maxDecimalPlaces; i > kk + 1; i--)
-                if (buffer[i] != '0')
-                    return &buffer[i + 1];
-            return &buffer[kk + 2]; // Reserve one zero
-        }
-        else
-            return &buffer[length + 1];
-    }
-    */
-    else if 0 < kk && kk <= 21 {
+    } else if 0 < kk && kk <= MAX_EXP {
         // 1234e-2 -> 12.34
         ptr::copy(
             buffer.offset(kk),
@@ -191,29 +176,7 @@ pub unsafe fn prettify(buffer: *mut u8, length: isize, k: isize) -> *mut u8 {
         } else {
             buffer.offset(length + 1)
         }
-    }
-    /*
-    else if (-6 < kk && kk <= 0) {
-        // 1234e-6 -> 0.001234
-        const int offset = 2 - kk;
-        std::memmove(&buffer[offset], &buffer[0], static_cast<size_t>(length));
-        buffer[0] = '0';
-        buffer[1] = '.';
-        for (int i = 2; i < offset; i++)
-            buffer[i] = '0';
-        if (length - kk > maxDecimalPlaces) {
-            // When maxDecimalPlaces = 2, 0.123 -> 0.12, 0.102 -> 0.1
-            // Remove extra trailing zeros (at least one) after truncation.
-            for (int i = maxDecimalPlaces + 1; i > 2; i--)
-                if (buffer[i] != '0')
-                    return &buffer[i + 1];
-            return &buffer[3]; // Reserve one zero
-        }
-        else
-            return &buffer[length + offset];
-    }
-    */
-    else if -6 < kk && kk <= 0 {
+    } else if MIN_EXP < kk && kk <= 0 {
         // 1234e-6 -> 0.001234
         let offset = 2 - kk;
         ptr::copy(buffer, buffer.offset(offset), length as usize);
@@ -234,44 +197,11 @@ pub unsafe fn prettify(buffer: *mut u8, length: isize, k: isize) -> *mut u8 {
         } else {
             buffer.offset(length + offset)
         }
-    }
-    /*
-    else if (kk < -maxDecimalPlaces) {
-        // Truncate to zero
-        buffer[0] = '0';
-        buffer[1] = '.';
-        buffer[2] = '0';
-        return &buffer[3];
-    }
-    */
-    else if kk < -crate::MAX_DECIMAL_PLACES {
-        *buffer = b'0';
-        *buffer.offset(1) = b'.';
-        *buffer.offset(2) = b'0';
-        buffer.offset(3)
-    }
-    /*
-    else if (length == 1) {
-        // 1e30
-        buffer[1] = 'e';
-        return WriteExponent(kk - 1, &buffer[2]);
-    }
-    */
-    else if length == 1 {
+    } else if length == 1 {
         // 1e30
         *buffer.offset(1) = b'e';
         write_exponent(kk - 1, buffer.offset(2))
-    }
-    /*
-    else {
-        // 1234e30 -> 1.234e33
-        std::memmove(&buffer[2], &buffer[1], static_cast<size_t>(length - 1));
-        buffer[1] = '.';
-        buffer[length + 1] = 'e';
-        return WriteExponent(kk - 1, &buffer[0 + length + 2]);
-    }
-    */
-    else {
+    } else {
         // 1234e30 -> 1.234e33
         ptr::copy(buffer.offset(1), buffer.offset(2), (length - 1) as usize);
         *buffer.offset(1) = b'.';
@@ -409,10 +339,12 @@ macro_rules! dtoa {
                     return;
                 }
             }
-            */
+             */
+	    let mut dist = wp_w.f;
             loop {
                 p2 *= 10;
                 delta *= 10;
+		dist *= 10;
                 let d = (p2 >> -one.e) as u8;
                 if d != 0 || len != 0 {
                     *buffer.offset(len) = b'0' + d;
@@ -422,19 +354,16 @@ macro_rules! dtoa {
                 kappa = kappa.wrapping_sub(1);
                 if p2 < delta {
                     k += kappa as isize;
-                    let index = -(kappa as isize);
+
                     grisu_round(
                         buffer,
                         len,
                         delta,
                         p2,
                         one.f,
-                        wp_w.f * if index < 9 {
-                            *POW10.get_unchecked(-(kappa as isize) as usize)
-                        } else {
-                            0
-                        },
+                        dist
                     );
+
                     return (len, k);
                 }
             }

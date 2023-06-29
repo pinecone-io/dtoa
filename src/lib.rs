@@ -61,9 +61,9 @@ use core::str;
 #[cfg(feature = "no-panic")]
 use no_panic::no_panic;
 
-const NAN: &str = "NaN";
-const INFINITY: &str = "inf";
-const NEG_INFINITY: &str = "-inf";
+const NAN: &str = "null";
+const INFINITY: &str = "null";
+const NEG_INFINITY: &str = "null";
 
 /// A correctly sized stack allocation for the formatted float to be written
 /// into.

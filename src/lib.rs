@@ -31,16 +31,20 @@
 //!
 //! ![performance](https://raw.githubusercontent.com/dtolnay/dtoa/master/performance.png)
 
-#![doc(html_root_url = "https://docs.rs/dtoa/1.0.6")]
+#![doc(html_root_url = "https://docs.rs/dtoa/1.0.10")]
 #![no_std]
 #![allow(
     clippy::cast_lossless,
     clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::cast_precision_loss,
     clippy::cast_sign_loss,
     clippy::doc_markdown,
+    clippy::expl_impl_clone_on_copy,
     clippy::if_not_else,
     clippy::missing_errors_doc,
     clippy::must_use_candidate,
+    clippy::needless_doctest_main,
     clippy::range_plus_one,
     clippy::semicolon_if_nothing_returned, // https://github.com/rust-lang/rust-clippy/issues/7768
     clippy::shadow_unrelated,
@@ -86,8 +90,11 @@ impl Default for Buffer {
     }
 }
 
+impl Copy for Buffer {}
+
 impl Clone for Buffer {
     #[inline]
+    #[allow(clippy::non_canonical_clone_impl)] // false positive https://github.com/rust-lang/rust-clippy/issues/11072
     fn clone(&self) -> Self {
         Buffer::new()
     }
@@ -135,9 +142,9 @@ impl Buffer {
     /// Please check [`is_finite`] yourself before calling this function, or
     /// check [`is_nan`] and [`is_infinite`] and handle those cases yourself.
     ///
-    /// [`is_finite`]: https://doc.rust-lang.org/std/primitive.f64.html#method.is_finite
-    /// [`is_nan`]: https://doc.rust-lang.org/std/primitive.f64.html#method.is_nan
-    /// [`is_infinite`]: https://doc.rust-lang.org/std/primitive.f64.html#method.is_infinite
+    /// [`is_finite`]: f64::is_finite
+    /// [`is_nan`]: f64::is_nan
+    /// [`is_infinite`]: f64::is_infinite
     #[cfg_attr(feature = "no-panic", no_panic)]
     pub fn format_finite<F: Float>(&mut self, value: F) -> &str {
         value.write(self)

@@ -1,8 +1,8 @@
 [package]
 name = "dtoa"
-version = "1.0.6" # remember to update html_root_url
+version = "1.0.10"
 authors = ["David Tolnay <dtolnay@gmail.com>"]
-categories = ["value-formatting", "no-std"]
+categories = ["value-formatting", "no-std", "no-std::no-alloc"]
 description = "Fast floating point primitive to string conversion"
 documentation = "https://docs.rs/dtoa"
 edition = "2018"
@@ -15,8 +15,11 @@ rust-version = "1.36"
 [dependencies]
 no-panic = { version = "0.1", optional = true }
 
-[lib]
-doc-scrape-examples = false
-
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
+rustdoc-args = [
+    "--generate-link-to-definition",
+    "--extern-html-root-url=core=https://doc.rust-lang.org",
+    "--extern-html-root-url=alloc=https://doc.rust-lang.org",
+    "--extern-html-root-url=std=https://doc.rust-lang.org",
+]
